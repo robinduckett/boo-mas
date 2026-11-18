@@ -1,0 +1,12 @@
+{
+  "name": "boo-mas",
+  "version": "1.0.0",
+  "description": "A tiny three.js game about a ghost in a Santa hat stringing fairy lights around a snow-globe planet.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "start:lan": "node scripts/serve.mjs --lan",
+    "build": "node scripts/build.mjs"
+  }
+}

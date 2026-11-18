@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Boo-mas — be the Christmas spirit. Literally.</title>
+<meta name="description" content="A tiny three.js game about a little ghost in a Santa hat, stringing fairy lights around a snow-globe planet before midnight. No image or audio assets — it's all code.">
+<meta name="theme-color" content="#0b1030">
+<meta property="og:title" content="Boo-mas">
+<meta property="og:description" content="Be the Christmas spirit. Literally. A tiny three.js game about a ghost in a Santa hat.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cpath d='M14 70V36C14 18 26 8 40 8s26 10 26 28v34l-9-8-8 8-9-8-9 8-8-8z' fill='%23f4f8ff' stroke='%230b1030' stroke-width='5' stroke-linejoin='round'/%3E%3Cellipse cx='31' cy='36' rx='5' ry='7' fill='%230b1030'/%3E%3Cellipse cx='49' cy='36' rx='5' ry='7' fill='%230b1030'/%3E%3Cpath d='M18 24C22 8 44 0 58 10c6 4 8 10 8 16-6-6-12-8-18-6z' fill='%23ef3b55' stroke='%230b1030' stroke-width='4' stroke-linejoin='round'/%3E%3Crect x='10' y='20' width='44' height='11' rx='5.5' fill='%23fff' stroke='%230b1030' stroke-width='4'/%3E%3Ccircle cx='67' cy='27' r='6' fill='%23fff' stroke='%230b1030' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/fredoka-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="game" tabindex="0" aria-label="Boo-mas game"></canvas>
+
+<div id="ui">
+
+  <!-- ───────────── in-game HUD ───────────── -->
+  <div id="hud" class="hud hidden">
+    <svg id="garland" class="garland" aria-hidden="true"></svg>
+
+    <div id="clock" class="bauble" title="Midnight is coming">
+      <span class="bauble-string"></span>
+      <span class="bauble-cap"></span>
+      <svg viewBox="0 0 100 100" class="bauble-ring" aria-hidden="true">
+        <circle cx="50" cy="50" r="45" class="ring-bg"/>
+        <circle cx="50" cy="50" r="45" class="ring-fg" id="clock-ring" pathLength="100"/>
+      </svg>
+      <div class="bauble-face"><span id="clock-time">9:00</span><small id="clock-ampm">PM</small></div>
+    </div>
+
+    <div class="tl">
+      <div id="spirit" class="pill snowcap">
+        <span class="label">Christmas spirit</span><b id="spirit-pct">0%</b>
+      </div>
+      <!-- the whole planet in a bauble: pale dots are still dark, gold ones are lit, Boo is in the middle -->
+      <div id="globe" class="globe" role="img" aria-label="Map of the whole planet. Pale dots are still dark.">
+        <span class="globe-cap"></span>
+        <span class="globe-glass"></span>
+        <canvas></canvas>
+        <span class="globe-shine"></span>
+        <div class="globe-left"><i></i><b>0</b><span>to light</span></div>
+      </div>
+    </div>
+
+    <div class="tr">
+      <div id="scorebox" class="pill snowcap">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="10" width="17" height="11" rx="2" fill="#ef3b55"/><rect x="2.5" y="6.5" width="19" height="5" rx="1.6" fill="#ff6a80"/><rect x="10.4" y="6.5" width="3.2" height="14.5" fill="#ffd257"/><circle cx="9" cy="5" r="2.4" fill="#ffd257"/><circle cx="15" cy="5" r="2.4" fill="#ffd257"/></svg>
+        <b id="score">0</b>
+      </div>
+      <div id="streak" class="streak"><span id="streak-text"></span><i id="streak-bar"></i></div>
+      <div id="buffs" class="buffs" aria-live="polite"></div>
+    </div>
+
+    <button id="boo-btn" class="boo-btn ready" aria-label="Boo! (Space)">
+      <span class="cool"></span>
+      <svg viewBox="0 0 80 80" aria-hidden="true">
+        <path d="M14 72V37C14 19 26 9 40 9s26 10 26 28v35l-9-8-8 8-9-8-9 8-8-8z" fill="#f4f8ff" stroke="#0b1030" stroke-width="4.5" stroke-linejoin="round"/>
+        <ellipse cx="31" cy="35" rx="5" ry="7.5" fill="#0b1030"/><ellipse cx="49" cy="35" rx="5" ry="7.5" fill="#0b1030"/>
+        <ellipse cx="40" cy="51" rx="6" ry="7.5" fill="#0b1030"/>
+      </svg>
+      <em>BOO!</em>
+      <kbd class="boo-key">space</kbd>
+    </button>
+
+    <!-- touch screens only: a thumb-stick (dragging anywhere else on the screen steers too) -->
+    <div id="stick" class="stick" aria-hidden="true"><i class="stick-base"></i><i class="stick-knob"></i></div>
+
+    <!-- shown while you are carrying a wreath: press it (or E) to lay its ring where you are -->
+    <button id="wreath-btn" class="wreath-btn" aria-label="Use your wreath (E)">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="30" r="17" fill="none" stroke="#17714a" stroke-width="12"/>
+        <circle cx="32" cy="30" r="17" fill="none" stroke="#35c98e" stroke-width="6" stroke-dasharray="5 6.9" stroke-linecap="round"/>
+        <circle cx="19" cy="20" r="3.4" fill="#ef3b55"/><circle cx="46" cy="22" r="3.4" fill="#ffd257"/><circle cx="48" cy="38" r="3.4" fill="#ef3b55"/><circle cx="16" cy="36" r="3.4" fill="#ffd257"/>
+        <path d="M32 47l-11-7v15zM32 47l11-7v15z" fill="#ef3b55" stroke="#0b1030" stroke-width="2.5" stroke-linejoin="round"/><circle cx="32" cy="47" r="4" fill="#ffd257" stroke="#0b1030" stroke-width="2.5"/>
+      </svg>
+      <b id="wreath-count">0</b>
+      <kbd class="boo-key">E</kbd>
+    </button>
+
+    <div id="hint" class="hint"></div>
+
+    <div class="br">
+      <div id="lights" class="pill small" title="How much string you have. Presents add more.">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="5" rx="1.5" fill="#22b07a"/><path d="M12 6c6 2 7 12 0 16-7-4-6-14 0-16z" fill="#ffd257"/></svg>
+        <b id="lights-len">56</b><span>m of string</span>
+      </div>
+      <button id="btn-mute" class="round" aria-label="Mute (M)" title="Mute (M)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5z" fill="currentColor"/><path class="waves" d="M15 9c1.6 1.7 1.6 4.3 0 6M17.6 6.5c3 3 3 8 0 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path class="cross" d="M15.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="btn-pause" class="round" aria-label="Pause (Esc)" title="Pause (Esc)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.5" fill="currentColor"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.5" fill="currentColor"/></svg>
+      </button>
+    </div>
+
+    <div id="markers" aria-hidden="true"></div>
+    <div id="hat-arrow" class="hat-arrow hidden" aria-hidden="true">
+      <svg viewBox="0 0 80 64"><path d="M14 46C18 18 44 6 60 14c8 4 11 12 10 20-7-8-14-10-20-8z" fill="#ef3b55" stroke="#0b1030" stroke-width="5" stroke-linejoin="round"/><rect x="6" y="40" width="50" height="14" rx="7" fill="#fff" stroke="#0b1030" stroke-width="5"/><circle cx="70" cy="36" r="7" fill="#fff" stroke="#0b1030" stroke-width="5"/></svg>
+      <i></i>
+    </div>
+  </div>
+
+  <div id="popups"></div>
+  <div id="banner" class="banner"></div>
+
+  <!-- ───────────── title ───────────── -->
+  <section id="title" class="screen title">
+    <header class="title-top">
+    <h1 class="logo" aria-label="Boo-mas">
+      <span class="ch b" data-ch="B"><span class="f">B</span><svg class="logo-hat" viewBox="0 0 130 100" aria-hidden="true"><path d="M20 66C24 26 62 4 92 16c16 7 22 22 20 40-9-13-22-17-33-13 8 9 11 18 11 26z" fill="#ef3b55" stroke="#0b1030" stroke-width="7" stroke-linejoin="round"/><rect x="8" y="58" width="92" height="27" rx="13.5" fill="#fff" stroke="#0b1030" stroke-width="7"/><circle cx="113" cy="60" r="12" fill="#fff" stroke="#0b1030" stroke-width="7"/></svg></span><span class="ch eye"><i></i></span><span class="ch eye"><i></i></span><span class="ch dash"></span><span class="ch red" data-ch="M"><span class="f">M</span></span><span class="ch red" data-ch="A"><span class="f">A</span></span><span class="ch red" data-ch="S"><span class="f">S</span></span>
+    </h1>
+    <p class="tagline">Be the Christmas spirit. <b>Literally.</b></p>
+    </header>
+
+    <div class="title-bottom">
+      <button id="btn-start" class="btn big snowcap"><span>Start haunting</span></button>
+      <ul class="howto">
+        <li>
+          <svg viewBox="0 0 64 48" aria-hidden="true"><rect x="22" y="4" width="20" height="30" rx="10" fill="none" stroke="#fff" stroke-width="3"/><line x1="32" y1="9" x2="32" y2="17" stroke="#ffd257" stroke-width="3" stroke-linecap="round"/><path d="M6 24l7-6v12zM58 24l-7-6v12zM32 46l-6-7h12z" fill="#bfe3ff"/></svg>
+          <p><b>Float</b> — Boo follows your mouse. <kbd>WASD</kbd> / arrows / touch work too.</p>
+        </li>
+        <li>
+          <svg viewBox="0 0 64 48" aria-hidden="true"><ellipse cx="32" cy="25" rx="26" ry="18" fill="none" stroke="#bfe3ff" stroke-width="2.5" stroke-dasharray="1 7" stroke-linecap="round"/><circle cx="8" cy="19" r="3.4" fill="#ef3b55"/><circle cx="20" cy="9.5" r="3.4" fill="#ffd257"/><circle cx="44" cy="9.5" r="3.4" fill="#22b07a"/><circle cx="56" cy="19" r="3.4" fill="#5aa0ff"/><circle cx="50" cy="38" r="3.4" fill="#ff7ac0"/><circle cx="14" cy="38" r="3.4" fill="#ffd257"/><path d="M32 12l9 13h-5l7 10H21l7-10h-5z" fill="#22b07a"/><rect x="30" y="35" width="4" height="5" fill="#8a5a3c"/></svg>
+          <p><b>Loop</b> — circle anything with your fairy lights to switch it on. Bigger loops, bigger combos.</p>
+        </li>
+        <li>
+          <svg viewBox="0 0 64 48" aria-hidden="true"><path d="M21 44V23c0-9 5-15 11-15s11 6 11 15v21l-4-4-3.5 4-3.5-4-3.5 4-3.5-4z" fill="#f4f8ff"/><ellipse cx="28" cy="22" rx="2.2" ry="3.4" fill="#0b1030"/><ellipse cx="36" cy="22" rx="2.2" ry="3.4" fill="#0b1030"/><ellipse cx="32" cy="30" rx="2.8" ry="3.6" fill="#0b1030"/><path d="M12 14l-7-4M10 26H2M52 14l7-4M54 26h8M14 37l-6 4M50 37l6 4" stroke="#ffd257" stroke-width="3" stroke-linecap="round"/></svg>
+          <p><b>Boo!</b> — <kbd>Space</kbd> or click flips the Humbugs. Then loop them to gift-wrap them.</p>
+        </li>
+      </ul>
+      <p class="credits">three.js r<span id="three-rev"></span> · no image or audio files, it's all code · planet seed <code id="seed-label">…</code></p>
+    </div>
+  </section>
+
+  <!-- ───────────── pause ───────────── -->
+  <section id="pause" class="screen dim hidden">
+    <div class="card snowcap">
+      <h2>Paused</h2>
+      <p class="sub">The Humbugs are waiting patiently.<br><small>(They are not.)</small></p>
+      <p class="info" id="pause-info"></p>
+      <div class="row">
+        <button id="btn-resume" class="btn">Back to haunting</button>
+        <button id="btn-restart" class="btn alt">Restart night</button>
+      </div>
+      <p class="keys"><kbd>Esc</kbd> pause · <kbd>E</kbd> use wreath · <kbd>M</kbd> mute · <kbd>G</kbd> big globe · <kbd>H</kbd> hide HUD</p>
+    </div>
+  </section>
+
+  <!-- ───────────── results ───────────── -->
+  <section id="results" class="screen dim hidden">
+    <div class="card snowcap wide">
+      <div class="stars" id="stars">
+        <svg viewBox="0 0 48 48"><path d="M24 3l6.2 13.4 14.6 1.8-10.8 10 2.8 14.4L24 35.4 11.2 42.6 14 28.2 3.2 18.2l14.6-1.8z"/></svg>
+        <svg viewBox="0 0 48 48"><path d="M24 3l6.2 13.4 14.6 1.8-10.8 10 2.8 14.4L24 35.4 11.2 42.6 14 28.2 3.2 18.2l14.6-1.8z"/></svg>
+        <svg viewBox="0 0 48 48"><path d="M24 3l6.2 13.4 14.6 1.8-10.8 10 2.8 14.4L24 35.4 11.2 42.6 14 28.2 3.2 18.2l14.6-1.8z"/></svg>
+      </div>
+      <h2 id="res-title">Merry Boo-mas!</h2>
+      <p class="sub" id="res-sub"></p>
+      <dl class="stats">
+        <div><dt>Christmas spirit</dt><dd id="st-spirit">0%</dd></div>
+        <div><dt>Loops closed</dt><dd id="st-loops">0</dd></div>
+        <div><dt>Biggest loop</dt><dd id="st-big">0</dd></div>
+        <div><dt>Humbugs gift-wrapped</dt><dd id="st-wrapped">0</dd></div>
+        <div><dt>Live catches</dt><dd id="st-live">0</dd></div>
+        <div><dt>Time to spare</dt><dd id="st-time">0:00</dd></div>
+        <div class="total"><dt>Score</dt><dd id="st-score">0</dd></div>
+      </dl>
+      <p class="keep" id="res-keep"></p>
+      <p class="best" id="res-best"></p>
+      <div class="row">
+        <button id="btn-next" class="btn">Next night →</button>
+        <button id="btn-retry" class="btn alt">Haunt it again</button>
+        <button id="btn-share" class="btn alt">Copy result</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="fade" class="fade on"><span>waking the ghost…</span></div>
+</div>
+
+<noscript><p style="position:fixed;inset:0;display:grid;place-items:center;color:#fff;font:600 20px system-ui">Boo-mas needs JavaScript (and WebGL 2). Boo.</p></noscript>
+<script>
+  // The game is a couple of dozen separate files. If one fails to arrive (flaky Wi-Fi, a dev server
+  // dropping a connection) nothing would start, so reload a couple of times before giving up.
+  function booRetry() {
+    var n = 0;
+    try { n = +sessionStorage.getItem('boomas.retry') || 0; sessionStorage.setItem('boomas.retry', n + 1); } catch (e) { n = 2; }
+    if (n < 2) { setTimeout(function () { location.reload(); }, 500 + n * 900); return; }
+    try { sessionStorage.removeItem('boomas.retry'); } catch (e) { /* fine */ }
+    var f = document.getElementById('fade');
+    if (f) f.innerHTML = '<span style="max-width:30em;text-align:center;padding:1em;animation:none">Boo-mas couldn\'t load all of its files.<br><a href="" style="color:#ffd257">Try again</a></span>';
+  }
+</script>
+<script type="module" src="src/main.js" onerror="booRetry()"></script>
+</body>
+</html>
